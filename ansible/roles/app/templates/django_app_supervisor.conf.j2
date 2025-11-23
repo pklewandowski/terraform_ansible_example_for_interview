@@ -1,0 +1,6 @@
+[program:django_app]
+command={{ django_base_dir }}/django_app_gunicorn_start.sh
+autorestart=true
+directory={{ django_base_dir }}
+autostart=true
+autorestart=true

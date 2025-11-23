@@ -1,0 +1,6 @@
+# DB matches Terraform
+db_name: appdb
+db_user: appuser
+db_password: supersecret # !!!!! In production keep passwords in a vault. This is only for demo !!!!!
+db_host: postgres_db
+db_port: 5432

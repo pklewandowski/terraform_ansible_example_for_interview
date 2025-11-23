@@ -1,0 +1,173 @@
+- name: Install Python3
+  # raw only for demo purposes. I believe that better is not to use raw but dedicated Ansible plays (actions)
+  raw: apt-get update && apt-get install -y python3
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install system dependencies
+  apt:
+    name:
+      - nginx
+      - python3-pip
+      - python3-venv
+      - python3-dev
+      - build-essential
+      - libpq-dev
+      - logrotate
+    state: present
+
+- name: Ensure app base directory exists
+  file:
+    path: "{{ django_base_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Create Python virtualenv
+  command: python3 -m venv venv
+  args:
+    chdir: "{{ django_base_dir }}"
+    creates: "{{ django_base_dir }}/venv/bin/activate"
+
+- name: Install Django & Gunicorn & psycopg2
+  command: "{{ django_base_dir }}/venv/bin/pip install django gunicorn psycopg2-binary"
+  args:
+    chdir: "{{ django_base_dir }}"
+
+- name: Generate Django project (idempotent)
+  command: "{{ django_base_dir }}/venv/bin/django-admin startproject {{ django_project_name }} {{ django_base_dir }}"
+  args:
+    creates: "{{ django_base_dir }}/manage.py"
+
+- name: Render environment file
+  template:
+    src: ".env.j2"
+    dest: "{{ django_env_file }}"
+    mode: "0640"
+
+- name: Patch settings.py for env-driven config
+  lineinfile:
+    path: "{{ django_base_dir }}/{{ django_project_name }}/settings.py"
+    insertafter: "^BASE_DIR ="
+    line: |
+      import os
+      DEBUG = os.getenv("DJANGO_DEBUG", "{{ django_debug }}") == "True"
+      SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "insecure-secret-key")
+      ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "{{ django_allowed_hosts }}").split(",")
+      DATABASES = {
+          'default': {
+              'ENGINE': 'django.db.backends.postgresql',
+              'NAME': os.getenv('DB_NAME', '{{ db_name }}'),
+              'USER': os.getenv('DB_USER', '{{ db_user }}'),
+              'PASSWORD': os.getenv('DB_PASSWORD', '{{ db_password }}'),
+              'HOST': os.getenv('DB_HOST', '{{ db_host }}'),
+              'PORT': os.getenv('DB_PORT', '{{ db_port }}'),
+          }
+      }
+
+- name: Run migrations
+  command: "{{ django_base_dir }}/venv/bin/python manage.py migrate"
+  args:
+    chdir: "{{ django_base_dir }}"
+
+- name: Create log directories for Gunicorn
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ gunicorn_access_log | dirname }}"
+    - "{{ gunicorn_error_log | dirname }}"
+
+-
+
+- name: Install and configure Nginx site
+  template:
+    src: "nginx.conf.j2"
+    dest: "/etc/nginx/sites-available/{{ django_project_name }}"
+    mode: "0644"
+
+- name: Enable Nginx site
+  file:
+    src: "/etc/nginx/sites-available/{{ django_project_name }}"
+    dest: "/etc/nginx/sites-enabled/{{ django_project_name }}"
+    state: link
+    force: true
+
+- name: Remove default Nginx site
+  file:
+    path: "/etc/nginx/sites-enabled/default"
+    state: absent
+
+- name: Restart Nginx
+  service:
+    name: nginx
+    state: restarted
+    enabled: true
+
+- name: Install supervisor
+  raw: apt-get update && apt-get install -y supervisor
+
+- name: Copy supervisor conf file for gunicorn
+  template:
+    src: "django_app_supervisor.conf.j2"
+    dest: "/etc/supervisor/conf.d/django_app_supervisor.conf"
+
+- name: Copy gunicorn startup file
+  template:
+    src: "django_app_gunicorn_start.sh.j2"
+    dest: "{{ django_base_dir }}/django_app_gunicorn_start.sh"
+
+- name: Ensure gunicorn start script is executable
+  file:
+    path: "{{ django_base_dir }}/django_app_gunicorn_start.sh"
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Start supervisor
+  command: supervisord -c /etc/supervisor/supervisord.conf
+  args:
+    creates: /var/run/supervisord.pid
+
+- name: Supervisor update
+  command: supervisorctl reread
+
+- name: Create or verify HSBC greetings file
+  hsbc_greetings:
+    path: /tmp/hsbc.txt
+  tags: hsbc_greetings
+  register: hsbc_result
+
+- name: "hsbc_greetings: Show full result"
+  debug:
+    var: hsbc_result
+  tags: hsbc_greetings_full_result
+  when: hsbc_result is defined
+
+- name: "hsbc_greetings: Show only message"
+  debug:
+    msg: "{{ hsbc_result.message }}"
+  when: hsbc_result is defined
+
+- name: "hsbc_greetings: Show if file was changed"
+  debug:
+    msg: "Changed: {{ hsbc_result.changed }}"
+  when: hsbc_result is defined
+
+# This are an alternate plays if not on docker and VM handles  systemd and systemctl
+#- name: Install systemd unit for Gunicorn
+#  template:
+#    src: "gunicorn.service.j2"
+#    dest: "/etc/systemd/system/gunicorn.service"
+#    mode: "0644"
+#
+#- name: Reload systemd
+#  command: systemctl daemon-reload
+#
+#- name: Enable and start Gunicorn
+#  systemd:
+#    name: gunicorn
+#    state: started
+#    enabled: true

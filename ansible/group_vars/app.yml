@@ -1,0 +1,10 @@
+django_project_name: myapp
+django_base_dir: /opt/myapp
+django_env_file: /opt/myapp/.env
+django_allowed_hosts: "localhost,127.0.0.1"
+django_debug: "False"
+
+gunicorn_bind: 0.0.0.0:8000
+gunicorn_workers: 3
+gunicorn_access_log: /var/log/gunicorn/access.log
+gunicorn_error_log: /var/log/gunicorn/error.log

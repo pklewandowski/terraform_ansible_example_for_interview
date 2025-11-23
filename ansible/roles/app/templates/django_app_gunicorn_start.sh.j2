@@ -1,0 +1,6 @@
+#!/bin/bash
+exec {{ django_base_dir }}/venv/bin/gunicorn {{ django_project_name }}.wsgi:application \
+  --bind {{ gunicorn_bind }} \
+  --workers {{ gunicorn_workers }} \
+  --access-logfile {{ gunicorn_access_log }} \
+  --error-logfile {{ gunicorn_error_log }}

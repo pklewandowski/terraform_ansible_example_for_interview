@@ -1,0 +1,7 @@
+.idea/
+.venv/
+.terraform/
+.workdir/
+.terraform_files/
+terraform.*
+.terraform.*

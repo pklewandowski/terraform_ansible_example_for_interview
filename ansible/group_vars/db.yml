@@ -1,0 +1,2 @@
+postgres_packages:
+  - postgresql-client

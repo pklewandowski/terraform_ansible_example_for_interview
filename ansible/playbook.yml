@@ -1,0 +1,19 @@
+# run command:
+# ansible-playbook -i path/to/inventory.ini path/to/playbook.yml
+- hosts: all
+  gather_facts: no
+  become: false
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+
+- hosts: db
+  gather_facts: no
+  become: false
+  roles:
+    - db
+
+- hosts: app
+  gather_facts: no
+  become: false
+  roles:
+    - app
