@@ -71,10 +71,9 @@ def run_module():
     )
 
     path = module.params['path']
-    has_expected = file_has_expected_content(path)
 
     if module.check_mode:
-        if has_expected:
+        if file_has_expected_content(path):
             result['message'] = f"Check mode: file {path} already contains expected text"
 
         else:
@@ -83,7 +82,7 @@ def run_module():
         module.exit_json(**result)
 
     # Idempotency – check state before changing
-    if has_expected:
+    if file_has_expected_content(path):
         result['message'] = f"File {path} already contains expected text"
 
     else:

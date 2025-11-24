@@ -21,6 +21,9 @@ tf-destroy:
 ansible-play:
 	./.venv/bin/ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
 
+ansible-check:
+	./.venv/bin/ansible-playbook -i ansible/inventory.ini ansible/playbook.yml --check
+
 ansible-test:
 	./.venv/bin/ansible-playbook -i ansible/inventory.ini ansible/roles/db/tests/test.yml
 
