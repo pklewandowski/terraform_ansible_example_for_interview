@@ -17,3 +17,10 @@
   become: false
   roles:
     - app
+
+- hosts: flask
+  gather_facts: no
+  become: false
+  roles:
+    - flask
+

@@ -1,0 +1,8 @@
+[program:flask_app]
+command={{ flask_base_dir }}/venv/bin/waitress-serve --port=80 --call flaskr:create_app
+directory={{ flask_base_dir }}
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/flask_app.err.log
+stdout_logfile=/var/log/flask_app.out.log
+
