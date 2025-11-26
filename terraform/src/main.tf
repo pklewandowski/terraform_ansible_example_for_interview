@@ -41,6 +41,28 @@ resource "docker_container" "app" {
   }
 }
 
+# Flask App container (Flask app)
+resource "docker_container" "flask_app" {
+  name  = "flask_app"
+  image = var.app_image
+  # this prevents the container to exit immediately as pure ubuntu does not have any initial processes running
+  # you can use also like this: command = ["sleep", "infinity"]
+  command = [
+    "tail",
+    "-f",
+    "/dev/null"
+  ]
+  networks_advanced {
+    name = docker_network.app_net.name
+  }
+
+  # Flask dev server
+  ports {
+    internal = 80
+    external = 8081
+  }
+}
+
 # Get PostgreSQL 16 image
 resource "docker_image" "postgres" {
   name = "postgres:16"

@@ -1,0 +1,45 @@
+- name: Install Python3
+  raw: apt-get update && apt-get install -y python3
+
+- name: Install system dependencies
+  apt:
+    name:
+      - python3-pip
+      - python3-venv
+      - python3-dev
+      - build-essential
+      - libpq-dev
+      - logrotate
+    state: present
+
+- name: Copy Flask App files
+  copy:
+    src: flask_app/
+    dest: "{{ flask_base_dir }}"
+
+- name: Create Python virtualenv for Flask app
+  command: python3 -m venv venv
+  args:
+    chdir: "{{ flask_base_dir }}"
+    creates: "{{ flask_base_dir }}/venv/bin/activate"
+
+- name: Install supervisor
+  raw: apt-get update && apt-get install -y supervisor
+
+- name: Copy supervisor conf file for waitress
+  template:
+    src: "flask_app_supervisor.conf.j2"
+    dest: "/etc/supervisor/conf.d/flask_app_supervisor.conf"
+
+- name: Install Flask App requirements
+  command: "{{ flask_base_dir }}/venv/bin/pip install -r requirements.txt"
+  args:
+    chdir: "{{ flask_base_dir }}"
+
+- name: Start supervisor
+  command: supervisord -c /etc/supervisor/supervisord.conf
+  args:
+    creates: /var/run/supervisord.pid
+
+- name: Supervisor update
+  command: supervisorctl reread
